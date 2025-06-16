@@ -1,0 +1,240 @@
+﻿@page "/Wishlist"
+@inject IWishListService WishlistService
+@inject IShoppingCartService ShoppingCartService
+@inject IJSRuntime JsRuntime
+
+<div class="container-fluid">
+    <h3 class="mb-4">My Wishlist</h3>
+
+    @if (!WishlistItems.Any())
+    {
+        <div class="text-center py-5">
+            <i class="bi bi-heart display-1 text-muted"></i>
+            <h4 class="mt-3 text-muted">Your wishlist is empty</h4>
+            <p class="text-muted">Save items you love to your wishlist and shop them later!</p>
+            <a href="/" class="btn btn-primary">Continue Shopping</a>
+        </div>
+    }
+    else
+    {
+        <div class="row">
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Wishlist Items (@WishlistItems.Count())</h5>
+                        <button class="btn btn-outline-danger btn-sm" @onclick="@ClearWishlist">
+                            <i class="bi bi-trash"></i> Clear All
+                        </button>
+                    </div>
+                    <div class="card-body p-0">
+                        @foreach (var item in WishlistItems)
+                        {
+                            <div class="row g-0 border-bottom p-3">
+                                <div class="col-md-3">
+                                    <img src="@item.ProductImageUrl"
+                                         alt="@item.ProductName"
+                                         class="img-fluid rounded"
+                                         style="max-height: 150px; object-fit: cover;">
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="ms-3">
+                                        <h6 class="fw-bold">@item.ProductName</h6>
+                                        <p class="text-muted small mb-2">@item.ProductDescription</p>
+                                        <p class="text-muted small mb-2">
+                                            <i class="bi bi-tag"></i> @item.CategoryName
+                                        </p>
+                                        <p class="text-muted small mb-0">
+                                            <i class="bi bi-calendar"></i> Added @item.DateAdded.ToString("MMM dd, yyyy")
+                                        </p>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="d-flex flex-column h-100 justify-content-between align-items-end">
+                                        <h5 class="text-primary fw-bold">₦@(item.Price.ToString("N2"))</h5>
+                                        <div class="btn-group-vertical w-100">
+                                            <button class="btn btn-primary btn-sm mb-2"
+                                                    @onclick="@(() => MoveToCart(item.ProductId))"
+                                                    disabled="@_isProcessing">
+                                                @if (_isProcessing)
+                                                {
+                                                    <span class="spinner-border spinner-border-sm me-1"></span>
+                                                }
+                                                <i class="bi bi-cart-plus"></i> Add to Cart
+                                            </button>
+                                            <button class="btn btn-outline-danger btn-sm"
+                                                    @onclick="@(() => RemoveFromWishlist(item.ProductId))"
+                                                    disabled="@_isProcessing">
+                                                <i class="bi bi-heart-fill"></i> Remove
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">Wishlist Summary</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between mb-3">
+                            <span>Total Items:</span>
+                            <strong>@WishlistItems.Count()</strong>
+                        </div>
+                        <div class="d-flex justify-content-between mb-3">
+                            <span>Total Value:</span>
+                            <strong class="text-primary">₦@(WishlistItems.Sum(x => x.Price).ToString("N2"))</strong>
+                        </div>
+                        <hr>
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-success" @onclick="@AddAllToCart" disabled="@_isProcessing">
+                                @if (_isProcessing)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-1"></span>
+                                }
+                                <i class="bi bi-cart-plus"></i> Add All to Cart
+                            </button>
+                            <a href="/" class="btn btn-outline-primary">
+                                <i class="bi bi-arrow-left"></i> Continue Shopping
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    public IEnumerable<WishListItemDto> WishlistItems { get; set; } = new List<WishListItemDto>();
+    private bool _isProcessing;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadWishlistItems();
+    }
+
+    private async Task LoadWishlistItems()
+    {
+        try
+        {
+            WishlistItems = await WishlistService.GetWishListItems();
+        }
+        catch (Exception ex)
+        {
+            await JsRuntime.InvokeVoidAsync("alert", $"Error loading wishlist: {ex.Message}");
+        }
+    }
+
+    private async Task RemoveFromWishlist(int productId)
+    {
+        if (_isProcessing) return;
+
+        try
+        {
+            _isProcessing = true;
+            var success = await WishlistService.RemoveFromWishList(productId);
+
+            if (success)
+            {
+                await LoadWishlistItems();
+                await JsRuntime.InvokeVoidAsync("showToast", "Item removed from wishlist", "success");
+            }
+            else
+            {
+                await JsRuntime.InvokeVoidAsync("showToast", "Failed to remove item", "error");
+            }
+        }
+        catch (Exception ex)
+        {
+            await JsRuntime.InvokeVoidAsync("alert", $"Error: {ex.Message}");
+        }
+        finally
+        {
+            _isProcessing = false;
+        }
+    }
+
+    private async Task MoveToCart(int productId)
+    {
+        if (_isProcessing) return;
+
+        try
+        {
+            _isProcessing = true;
+            
+            var cartItem = await ShoppingCartService.AddItem(new CartItemToAddDto { CartId = HardCoded.CartId, ProductId = productId, Qty = 1 });
+
+            // Remove from wishlist
+            var success = await WishlistService.RemoveFromWishList(productId);
+
+            if (success)
+            {
+                await LoadWishlistItems();
+                await JsRuntime.InvokeVoidAsync("showToast", "Item moved to cart!", "success");
+            }
+        }
+        catch (Exception ex)
+        {
+            await JsRuntime.InvokeVoidAsync("alert", $"Error: {ex.Message}");
+        }
+        finally
+        {
+            _isProcessing = false;
+        }
+    }
+
+    private async Task AddAllToCart()
+    {
+        if (_isProcessing || !WishlistItems.Any()) return;
+
+        try
+        {
+            _isProcessing = true;
+            var itemsToMove = WishlistItems.ToList();
+
+            foreach (var item in itemsToMove)
+            {
+                await MoveToCart(item.ProductId);
+            }
+
+            await JsRuntime.InvokeVoidAsync("showToast", "All items moved to cart!", "success");
+        }
+        catch (Exception ex)
+        {
+            await JsRuntime.InvokeVoidAsync("alert", $"Error: {ex.Message}");
+        }
+        finally
+        {
+            _isProcessing = false;
+        }
+    }
+
+    private async Task ClearWishlist()
+    {
+        if (_isProcessing) return;
+
+        var confirmed = await JsRuntime.InvokeAsync<bool>("confirm", "Are you sure you want to clear your entire wishlist?");
+        if (!confirmed) return;
+
+        try
+        {
+            _isProcessing = true;
+            await WishlistService.ClearWishList();
+            await LoadWishlistItems();
+            await JsRuntime.InvokeVoidAsync("showToast", "Wishlist cleared", "info");
+        }
+        catch (Exception ex)
+        {
+            await JsRuntime.InvokeVoidAsync("alert", $"Error: {ex.Message}");
+        }
+        finally
+        {
+            _isProcessing = false;
+        }
+    }
+}

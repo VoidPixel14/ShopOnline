@@ -1,0 +1,108 @@
+﻿@inject IWishListService WishlistService
+@inject IJSRuntime JsRuntime
+
+<button class="btn @ButtonClass @CssClass"
+        @onclick="ToggleWishlist"
+        disabled="@_isProcessing"
+        title="@ButtonTitle">
+
+    @if (_isProcessing)
+    {
+        <span class="spinner-border spinner-border-sm"></span>
+    }
+    else
+    {
+        <i class="bi @HeartIcon"></i>
+    }
+    @if (ShowText)
+    {
+        <span class="@(IconOnly ? "d-none d-md-inline" : "")">
+            @ButtonText
+        </span>
+    }
+</button>
+
+@code {
+    [Parameter] public int ProductId { get; set; }
+    [Parameter] public string CssClass { get; set; } = "";
+    [Parameter] public bool ShowText { get; set; } = true;
+    [Parameter] public bool IconOnly { get; set; } = false;
+    [Parameter] public string Size { get; set; } = "";
+
+    private bool _isInWishlist = false;
+    private bool _isProcessing = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _isInWishlist = await WishlistService.IsInWishList(ProductId);
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (ProductId > 0)
+        {
+            _isInWishlist = await WishlistService.IsInWishList(ProductId);
+        }
+    }
+
+    private async Task ToggleWishlist()
+    {
+        if (_isProcessing) return;
+
+        try
+        {
+            _isProcessing = true;
+
+            if (_isInWishlist)
+            {
+                var success = await WishlistService.RemoveFromWishList(ProductId);
+                if (success)
+                {
+                    _isInWishlist = false;
+                    await ShowToast("Removed from wishlist", "info");
+                }
+                else
+                {
+                    await ShowToast("Failed to remove from wishlist", "error");
+                }
+            }
+            else
+            {
+                var wishlistItem = await WishlistService.AddToWishList(ProductId);
+                _isInWishlist = true;
+                await ShowToast("Added to wishlist!", "success");
+            }
+        }
+        catch (Exception ex)
+        {
+            await ShowToast($"Error: {ex.Message}", "error");
+        }
+        finally
+        {
+            _isProcessing = false;
+        }
+    }
+
+    private async Task ShowToast(string message, string type)
+    {
+        try
+        {
+            await JsRuntime.InvokeVoidAsync("showToast", message, type);
+        }
+        catch
+        {
+            // Fallback to alert if toast function doesn't exist
+            await JsRuntime.InvokeVoidAsync("alert", message);
+        }
+    }
+
+    private string HeartIcon => _isInWishlist ? "bi-heart-fill" : "bi-heart";
+
+    private string ButtonClass => _isInWishlist
+        ? $"btn-danger{(string.IsNullOrEmpty(Size) ? "" : $" btn-{Size}")}"
+        : $"btn-outline-danger{(string.IsNullOrEmpty(Size) ? "" : $" btn-{Size}")}";
+
+    private string ButtonText => _isInWishlist ? "Remove from Wishlist" : "Add to Wishlist";
+
+    private string ButtonTitle => _isInWishlist ? "Remove from wishlist" : "Add to wishlist";
+}

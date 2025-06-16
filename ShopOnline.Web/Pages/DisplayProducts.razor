@@ -12,8 +12,13 @@
                     </h5>
                     <p class="card-text">
                         @{
-                            var nairaCulture = new System.Globalization.CultureInfo("en-NG");
-                            nairaCulture.NumberFormat.CurrencySymbol = "₦";
+                            var nairaCulture = new System.Globalization.CultureInfo("en-NG")
+                            {
+                                NumberFormat =
+                                {
+                                    CurrencySymbol = "₦"
+                                }
+                            };
                         }
                         <b>@item.Price.ToString("C", nairaCulture)</b>
                     </p>

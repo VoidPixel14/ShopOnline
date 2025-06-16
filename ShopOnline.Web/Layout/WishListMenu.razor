@@ -1,0 +1,33 @@
+﻿@implements IDisposable
+@inject IWishListService WishListService
+
+<a href="WishList" class="btn btn-outline-danger me-2" title="WishList">
+    <i class="bi bi-heart"></i>&nbsp; WishList
+    <span class="badge bg-danger">@_wishListItemCount</span>
+</a>
+
+
+@code {
+
+    private int _wishListItemCount = 0;
+
+    public void Dispose()
+    {
+        WishListService.OnWishListChanged -= WishListChanged;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        WishListService.OnWishListChanged += WishListChanged;
+
+        _wishListItemCount = await WishListService.GetWishListItemsCount();
+    }
+
+    protected void WishListChanged(int totalCount)
+    {
+        _wishListItemCount = totalCount;
+
+        InvokeAsync(StateHasChanged);
+    }
+
+}

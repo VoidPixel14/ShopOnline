@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore.Migrations;
+﻿using System;
+using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
@@ -20,7 +21,8 @@ namespace ShopOnline.Api.Migrations
                         .Annotation("SqlServer:Identity", "1, 1"),
                     CartId = table.Column<int>(type: "int", nullable: false),
                     ProductId = table.Column<int>(type: "int", nullable: false),
-                    Qty = table.Column<int>(type: "int", nullable: false)
+                    Qty = table.Column<int>(type: "int", nullable: false),
+                    UserId = table.Column<int>(type: "int", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -84,6 +86,61 @@ namespace ShopOnline.Api.Migrations
                     table.PrimaryKey("PK_Users", x => x.Id);
                 });
 
+            migrationBuilder.CreateTable(
+                name: "WishLists",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    UserId = table.Column<int>(type: "int", nullable: false),
+                    Name = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
+                    Description = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true),
+                    CreatedDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    LastModified = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    IsPublic = table.Column<bool>(type: "bit", nullable: false),
+                    IsDefault = table.Column<bool>(type: "bit", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_WishLists", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_WishLists_Users_UserId",
+                        column: x => x.UserId,
+                        principalTable: "Users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "WishListItems",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    WishlistId = table.Column<int>(type: "int", nullable: false),
+                    ProductId = table.Column<int>(type: "int", nullable: false),
+                    DateAdded = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    Qty = table.Column<int>(type: "int", nullable: false),
+                    Notes = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true),
+                    Priority = table.Column<int>(type: "int", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_WishListItems", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_WishListItems_Products_ProductId",
+                        column: x => x.ProductId,
+                        principalTable: "Products",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_WishListItems_WishLists_WishlistId",
+                        column: x => x.WishlistId,
+                        principalTable: "WishLists",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
             migrationBuilder.InsertData(
                 table: "Carts",
                 columns: new[] { "Id", "UserId" },
@@ -114,9 +171,9 @@ namespace ShopOnline.Api.Migrations
                     { 4, 1, "Soft, flaky, buttery buns with sweet or savory fillings", "/Images/Pastry/Buns.png", "Buns", 250m, 60 },
                     { 5, 1, "Crispy, thin dough roll with savory egg", "/Images/Pastry/EggRoll.png", "EggRoll", 350m, 85 },
                     { 6, 1, "Simple, sweet, soft cake often enjoyed on its own", "/Images/Pastry/Cake.png", "Cake", 250m, 120 },
-                    { 7, 2, "Orange caprisun drink", "/Images/Drinks/Orange.png", "Caprisun - Orange", 150m, 200 },
-                    { 8, 2, "Apple caprisun drink", "/Images/Drinks/Apple.png", "Caprisun - Apple", 150m, 300 },
-                    { 9, 2, "Nutritious milk drink, often fortified with vitamins and minerals", "/Images/Drinks/Nutrimilk.png", "Nutrimilk", 150m, 20 },
+                    { 7, 2, "Orange caprisun drink", "/Images/Drinks/Orange.png", "Caprisun - Orange", 350m, 200 },
+                    { 8, 2, "Apple caprisun drink", "/Images/Drinks/Apple.png", "Caprisun - Apple", 350m, 300 },
+                    { 9, 2, "Nutritious milk drink, often fortified with vitamins and minerals", "/Images/Drinks/Nutrimilk.png", "Nutrimilk", 400m, 20 },
                     { 10, 3, "Flaky pastry filled with seasoned sausage, tasty and satisfying", "/Images/Snack/SausageRoll.png", "Sausage Roll", 150m, 212 },
                     { 11, 3, "Flaky pastry filled with seasoned sausage, tasty and satisfying", "/Images/Snack/Rite.png", "Rite", 150m, 112 },
                     { 12, 3, "Delightful chin chin snack", "/Images/Snack/Minimie.png", "Minimie", 200m, 90 }
@@ -130,6 +187,21 @@ namespace ShopOnline.Api.Migrations
                     { 1, "Kareem" },
                     { 2, "Daniel" }
                 });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_WishListItems_ProductId",
+                table: "WishListItems",
+                column: "ProductId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_WishListItems_WishlistId",
+                table: "WishListItems",
+                column: "WishlistId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_WishLists_UserId",
+                table: "WishLists",
+                column: "UserId");
         }
 
         /// <inheritdoc />
@@ -145,7 +217,13 @@ namespace ShopOnline.Api.Migrations
                 name: "ProductCategories");
 
             migrationBuilder.DropTable(
+                name: "WishListItems");
+
+            migrationBuilder.DropTable(
                 name: "Products");
+
+            migrationBuilder.DropTable(
+                name: "WishLists");
 
             migrationBuilder.DropTable(
                 name: "Users");
